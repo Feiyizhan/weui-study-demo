@@ -1,0 +1,342 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0">
+    <title>TODO</title>
+	<!-- 引入 WeUI -->
+	<link rel="stylesheet" href="../style/weui.min.css"/>
+	<script src="../zepto.min.js"></script>
+	<script src="../weui.min.js"></script>
+	<script src="../uuid.js"></script>
+    <style>
+        body {
+            background-color: #efeff4;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+	<style type="text/css">.todo__title___30UL2{margin:30px 0;font-weight:400;font-size:34px;color:#3cc51f;text-align:center}.todo__item___30Dh0{color:#222}.todo__completed___13qbT{color:#999!important}.todo__remark___1xlJu{font-size:inherit!important}</style>
+	<style type="text/css">.detail__title___LubXw{margin:30px 0;font-weight:400;font-size:34px;color:#3cc51f;text-align:center}.detail__label___a_RgK{width:4em;margin-right:1em}</style>
+</head>
+<body ontouchstart>
+    <div id="container" class="container" >
+		<div id="main" >
+			<h1 class="todo__title___30UL2">TODO</h1>
+			<div class="weui-cells-title">
+				<p>你想干嘛</p>
+			</div>
+			<div class="weui-cells weui-cells_form weui-cells_checkbox" id="todos">
+				<div class="weui-cell">
+					<div class="weui-cell_bd weui-cell-primary">
+						<input class="weui-input" id="todo" type="text" placeholder="What needs to be done ?">
+					</div>
+					
+				</div>
+			</div>
+			<div class="weui-btn_area">
+				<a class="weui-btn weui-btn_warn" href="javascript:" id="deleteAll">清空</a>
+			</div>
+		</div>
+		<div id="detail" style="display:none">
+			<h1 class="detail__title___LubXw">TODO</h1>
+			<input type="hidden" id="id" />
+			<div class="weui-cells weui-cells-form">
+				<div class="weui-cell">
+					<div class="weui-cell__hd">
+						<label for="" class="weui-label detail__label___a_RgK">标题</label>
+					</div>
+					<div class="weui-cell__bd weui-cell-primary">
+						<input type="text" class="weui-input" id="title" value="111">
+					</div>
+					<div class="weui-cell__ft"></div>
+				</div>
+				<div class="weui-cell">
+					<div class="weui-cell__hd">
+						<label for="" class="weui-label detail__label___a_RgK">完成时间</label>
+					</div>
+					<div class="weui-cell__bd weui-cell-primary">
+						<input type="datetime-local" class="weui-input" id="finishTime" value="2017-04-12T16:40:12">
+					</div>
+					<div class="weui-cell__ft"></div>
+				</div>
+				<div class="weui-cell weui-cell-switch">
+					<div class="weui-cell__bd weui-cell-primary">
+						<p>是否完成</p>
+					</div>
+					<div class="weui-cell__ft">
+						<input class="weui-switch" type="checkbox" id="status" checked="">
+					</div>
+				</div>
+			</div>
+			<div class="weui-cells-title">备注说明</div>
+			<div class="weui-cells weui-cells-form">
+				<div class="weui-cell">
+					<div class="weui-cell__bd weui-cell-primary">
+						<textarea class="weui-textarea" id="remark" placeholder="请输入备注说明" rows="3"></textarea>
+					</div>
+				</div>
+			</div>
+			<div class="weui-btn-area">
+				<a class="weui-btn weui-btn_primary" href="javascript:" id="back">确认</a>
+				<a class="weui-btn weui-btn_warn" href="javascript:" id="delete">删除</a>
+			</div>
+		</div>
+	
+	</div>
+	<script>
+		var key = '_TODOS';
+		
+		$(function(){
+			$('#main').on('keyup', '#todo', function (e) {
+				if (e.keyCode === 13) {
+				    
+					
+					//util.debug('enter');
+					const title = $(this).val();
+					//const todos = dataManager.getData(dataManager.TODOS, []);
+					const todos = readData();
+					if (!title) {
+						return;
+					}
+					todos.push({
+						id: uuid.v4(),
+						title: title,
+						status: 0,
+						finishTime: getLocalISOString(),
+						remark: ''
+					});
+					writeData(todos);
+					updateTodos();
+					$(this).val('');
+				}
+			}).on('change', 'label input[type=checkbox]', function () {
+				const isChecked = $(this).is(':checked');
+				const id = $(this).data('id');
+				//util.debug('status change', id, isChecked);
+				let todos = readData();
+				todos = $.map(todos,function(item,i){
+					if(item.id == id){
+						item.status= isChecked ? 1 : 0;
+					}
+					return item;
+				
+				});
+				writeData(todos);
+				updateTodos();
+			}).on('click', '#deleteAll', function () {
+				weui.confirm('确定要清空吗?', function (){
+					clearData();
+					updateTodos();
+				}, function (){
+
+				});
+				return false;
+			});
+			
+			$('#detail').on('input', '#title', function () {
+				const id = $('#id').val();
+				let todo = getTodo(id);
+				const title = $(this).val();
+				todo.title = title;
+				updateTodo(todo);
+				
+			}).on('change', '#finishTime', function () {
+				const id =  $('#id').val();
+				let todo = getTodo(id);
+				const finishTime = $(this).val();
+				todo.finishTime = finishTime;
+				updateTodo(todo);
+			}).on('change', '#status', function () {
+				const id =  $('#id').val();
+				let todo = getTodo(id);
+				const isChecked = $(this).is(':checked');
+				todo.status = isChecked ? 1 : 0;
+				updateTodo(todo);
+			}).on('input', '#remark', function () {
+				const id =  $('#id').val();
+				let todo = getTodo(id);
+				const remark = $(this).val();
+				todo.remark = remark;
+				updateTodo(todo);
+			}).on('click', '#back', function () {
+				updateTodos();
+				$('#todo').focus();
+				$('#detail').hide();
+				$('#main').show();
+				//history.go(-1);
+			}).on('click', '#delete', function () {
+				weui.confirm('确定要删除改任务 ?', function () {
+					const id = $('#id').val();
+					let todos = readData();
+					todos = $.map(todos,function(item,i){
+							if(item.id != id){
+								return item;
+							}
+						
+						});
+					writeData(todos);
+					updateTodos();
+					$('#todo').focus();
+					$('#detail').hide();
+					$('#main').show();
+
+				}, function () {
+					//util.debug('不删除');
+				});
+			});
+			
+			
+			updateTodos();
+			$('#todo').focus();
+		});
+		
+		/**
+         * update
+         */
+        function updateTodos() {
+            const todos = readData();
+			$('#main .weui-cell:not(:first-child)').remove();
+			for(var i=0;i<todos.length;i++){
+				const item = generateItem(todos[i]);
+				$('#todos').append(item);
+			}
+        }
+		
+		function readData(){
+			// Check browser support
+			if (typeof(Storage) !== "undefined") {
+				
+				return JSON.parse(localStorage.getItem(key) || '[]');;
+			} else {
+				console.log("抱歉！您的浏览器不支持 Web Storage ...");
+			}
+		}
+		
+		function writeData(value){
+			// Check browser support
+			if (typeof(Storage) !== "undefined") {
+				// Store
+				localStorage.setItem(key, JSON.stringify(value));
+			} else {
+				console.log("抱歉！您的浏览器不支持 Web Storage ...");
+			}
+		}
+		
+		function clearData(){
+			// Check browser support
+			if (typeof(Storage) !== "undefined") {
+				// Remove
+				localStorage.removeItem(key);
+			} else {
+				console.log("抱歉！您的浏览器不支持 Web Storage ...");
+			}
+		}
+		
+		function getLocalISOString() {
+			const now = new Date();
+
+			function pad(n) {
+				return n < 10 ? '0' + n : n;
+			}
+
+			return now.getFullYear() + '-'
+				+ pad(now.getMonth() + 1) + '-'
+				+ pad(now.getDate()) + 'T'
+				+ pad(now.getHours()) + ':'
+				+ pad(now.getMinutes()) + ':'
+				+ pad(now.getSeconds());
+		}
+		
+		function getTodo(id){
+			const todos = readData();
+			var todo;
+			for(var i=0;i<todos.length;i++){
+				if(todos[i].id ==id){
+					todo = todos[i];
+					break;
+				}
+			}
+			return todo;
+
+		}
+		
+		function updateTodo(todo){
+			let todos = readData();
+			todos = $.map(todos,function(item,i){
+					if(item.id == todo.id){
+						item=todo;
+					}
+					return item;
+				
+				});
+			writeData(todos);
+		}
+		
+		
+		function showDetail(id){
+			
+			const todos = readData();
+			var todo =getTodo(id);
+			if(todo){
+				$('#main').hide();
+				$('#title').val(todo.title);
+				$('#finishTime').val(todo.finishTime);
+				$('#id').val(todo.id);
+				$('#status').prop('checked',todo.status==1?true:false);
+		
+				
+				$('#remark').text(todo.remark);
+				
+				$('#detail').show();
+			}else{
+				updateTodos();
+				$('#todo').focus();
+			}
+			
+			
+			
+			
+			
+			
+		
+		}
+	
+		function generateItem(todo){ 
+			var a ="";
+			var title = "";
+			var input = "";
+			if(todo.status == 1){
+				a = '<a href="javascript:showDetail(\''+todo.id+'\')" class="weui-cell weui-check__label todo__item___30Dh0 todo__completed___13qbT ">'
+				title =  '<p><s>'+todo.title+'</s></p>' ;
+				input = '<input type="checkbox" class="weui-check" name="checkbox1" data-id="'+todo.id+'" id="'+todo.id+'" checked>';
+			}else{
+				a = '<a href="javascript:showDetail(\''+todo.id+'\')" class="weui-cell weui-check__label todo__item___30Dh0 ">'
+				title = '<p>'+todo.title+'</p>';
+				input= '<input type="checkbox" class="weui-check" name="checkbox1" data-id="'+todo.id+'" id="'+todo.id+'">';
+			}
+			var item = a +
+							'<label class="weui-cell__hd" for="'+todo.id+'">'+
+								input+
+								'<i class="weui-icon-checked"></i>'+
+							'</label>' +
+							'<div class="weui-cell__bd">' +
+								title+
+							'</div>' +				
+							'<div class="weui-cell__ft todo__remark___1xlJu">' +
+									todo.remark
+							'</div>'+
+						'</a>' ;
+			return item;
+
+		}
+	
+	</script>
+</body>
+</html>
